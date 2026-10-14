@@ -13,6 +13,9 @@ session_table = boto3.resource("dynamodb").Table(os.environ["SESSION_TABLE_NAME"
 MICROVM_IMAGE_ARN = os.environ["MICROVM_IMAGE_ARN"]
 MICROVM_IMAGE_VERSION = os.environ["MICROVM_IMAGE_VERSION"]
 MICROVM_EXECUTION_ROLE_ARN = os.environ["MICROVM_EXECUTION_ROLE_ARN"]
+MICROVM_EGRESS_NETWORK_CONNECTOR_ARN = os.environ[
+    "MICROVM_EGRESS_NETWORK_CONNECTOR_ARN"
+]
 APP_PORT = 8080
 # Must not exceed the MicroVM's own maximumDurationInSeconds (set below).
 SESSION_TTL_SECONDS = 28800
@@ -28,6 +31,7 @@ def get_or_create_session(session_token: str | None) -> dict:
         imageIdentifier=MICROVM_IMAGE_ARN,
         imageVersion=MICROVM_IMAGE_VERSION,
         executionRoleArn=MICROVM_EXECUTION_ROLE_ARN,
+        egressNetworkConnectors=[MICROVM_EGRESS_NETWORK_CONNECTOR_ARN],
         maximumDurationInSeconds=SESSION_TTL_SECONDS,
         idlePolicy={
             "maxIdleDurationSeconds": 60,

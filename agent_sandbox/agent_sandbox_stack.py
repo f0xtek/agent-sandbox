@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
@@ -12,9 +13,20 @@ from constructs import Construct
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+@dataclass
+class AgentSandboxStackProps:
+    network_connector_arn: str
+
+
 class AgentSandboxStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        props: AgentSandboxStackProps,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         tool_env_asset = s3_assets.Asset(
@@ -84,7 +96,7 @@ class AgentSandboxStack(Stack):
             cpu_configurations=[{"architecture": "ARM_64"}],
             resources=[{"minimumMemoryInMiB": 512}],
             additional_os_capabilities=[],
-            egress_network_connectors=[],
+            egress_network_connectors=[props.network_connector_arn],
             environment_variables=[],
             hooks={
                 "port": 9000,
@@ -134,12 +146,15 @@ class AgentSandboxStack(Stack):
         )
         launcher_lambda_role.add_to_policy(
             iam.PolicyStatement(
-                # Required for every RunMicrovm call, even with no custom connector
-                # a MicroVM always passes its default HTTP_INGRESS/INTERNET_EGRESS
-                # connectors at run time.
+                # The default connector covers the HTTP_INGRESS side, which
+                # every RunMicrovm call still gets automatically even though
+                # we never name it explicitly. The second ARN is the
+                # VPC-only egress connector from AgentSandboxNetworkStack
+                # that denies submitted code internet access.
                 actions=["lambda:PassNetworkConnector"],
                 resources=[
-                    f"arn:aws:lambda:{self.region}:aws:network-connector:aws-network-connector:*"
+                    f"arn:aws:lambda:{self.region}:aws:network-connector:aws-network-connector:*",
+                    props.network_connector_arn,
                 ],
             )
         )
@@ -158,6 +173,7 @@ class AgentSandboxStack(Stack):
                 "MICROVM_IMAGE_VERSION": micro_vm_image.attr_latest_active_image_version,
                 "MICROVM_EXECUTION_ROLE_ARN": execution_role.role_arn,
                 "SESSION_TABLE_NAME": session_table.table_name,
+                "MICROVM_EGRESS_NETWORK_CONNECTOR_ARN": props.network_connector_arn,
             },
             timeout=Duration.seconds(30),
         )
