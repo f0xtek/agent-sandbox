@@ -22,4 +22,4 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = ["boto3-stubs[dynamodb]>=1.40.0", "pytest==8.4.2"]
+dev = ["boto3-stubs[dynamodb]>=1.40.0", "pytest==9.0.3"]
